@@ -12,6 +12,7 @@
 export class SteamID {
   /**
    * The main BigInt that stores the SteamID.
+   *
    * Using the JS BigInt as I thought the
    * `number` type seems to me a little
    * bit to risky, especially when talking
@@ -46,6 +47,10 @@ export class SteamID {
   InstanceFlagLobby = 262144; // ( k_unSteamAccountInstanceMask + 1 ) >> 2
   InstanceFlagMMSLobby = 131072; // ( k_unSteamAccountInstanceMask + 1 ) >> 3
 
+  VanityIndividual = 1;
+  VanityGroup = 2;
+  VanityGameGroup = 3;
+
   /**
    * The array of all Characters for all the account chars.
    */
@@ -65,8 +70,23 @@ export class SteamID {
 
   /**
    * Initialize a new instance of the SteamID class.
-   * It uses the same method as the original to
+   * It uses the same method as the original from the
+   * {@linke https://github.com/xPaw/SteamID.php} library to
    * *guess* the input type and then works from there.
+   *
+   * It can be used like this:
+   * ```ts
+   * // NOTE: This example uses SteamID from "GabeLoganNewell"
+   * // This here is the example for the usage
+   * // of the normal SteamID:
+   * const steamid = new SteamID("76561197960287930");
+   *
+   * // This here uses the SteamID3:
+   * const steamid2 = new SteamID("STEAM_1:0:11101");
+   *
+   * // And this here uses the SteamID3:
+   * const steamid3 = new SteamID("[U:1:22202]");
+   * ```
    *
    * @param {(number | bigint | string | null)} [value=null]
    */
@@ -210,7 +230,22 @@ export class SteamID {
   }
 
   /**
-   * @returns {string}
+   * Render the SteamID in the invite code format from Steam.
+   *
+   * The invites can be formatted as:
+   * - {@link https://s.team/p/%s}
+   * - {@link https://steamcommunity.com/user/%s}
+   *
+   * It can be used in this way:
+   * ```js
+   * // NOTE: This example uses SteamID from "GabeLoganNewell"
+   * const steamid = new SteamID("76561197960287930");
+   *
+   * // The following prints out this Steam Short URL: https://s.team/p/hj-qp
+   * console.log(`https://s.team/p/${steamid.renderSteamInvite()}`)
+   * ```
+   *
+   * @returns {string} The code that can be appended to the link.
    */
   public renderSteamInvite(): string {
     switch (this.getAccountType()) {
@@ -220,6 +255,10 @@ export class SteamID {
         code = replace(code);
         const length = code.length;
 
+        /** TODO: It seems like Valve uses this in a way that is not predictable
+         *        to the original author of {@link https://github.com/xPaw/SteamID.php/blob/2841efd68a7718d9175d56955565c535428c36d5/src/SteamID.php#L322}.
+         *        I should test it more and potentially address it.
+         */
         if (length > 3) {
           const offset = length / 2;
           code = code.substring(0, offset) + "-" + code.substring(offset);
@@ -233,7 +272,85 @@ export class SteamID {
     }
   }
 
-  public setFromUInt64(value: number | bigint | string): this {
+  /**
+   * @param {string} value
+   * @param {function(string, number)} callback
+   * @returns
+   */
+  public setFromURL(
+    value: string,
+    callback: (str: string, n: number) => string,
+  ): SteamID {
+    let val;
+    const matches = value.match(
+      /^https?:\/\/(?:my\.steamchina|steamcommunity)\.com\/(?<type>profiles|gid)\/(?<id>.+?)(?:\/|$)/,
+    );
+    if (matches != null) {
+      val = matches.groups?.id;
+    } else {
+      const matches = value.match(
+        /^https?:\/\/(?:my\.steamchina|steamcommunity)\.com\/(?<type>id|groups|games)\/(?<id>[\w-]+)(?:\/|$)/,
+      );
+      // TODO: Check how the empty capturing group are woorking.
+      if (matches != null && matches.groups?.id != undefined) {
+        const length = Number(matches.groups?.id);
+
+        if (length < 2 || length > 32) {
+          throw new Error("Provided vanity url has bad length.");
+        }
+
+        if (this.isNumeric(matches.groups?.id)) {
+          const steamID = new SteamID(matches.groups?.id);
+
+          if (steamID.isValid()) {
+            return steamID;
+          }
+        }
+
+        let vanityType;
+        // deno-fmt-ignore
+        switch (matches.groups?.type) {
+          case "groups": { vanityType = this.VanityIndividual; break; }
+          case "games": { vanityType = this.VanityGameGroup; break; }
+          default: { vanityType = this.VanityIndividual; break; }
+        }
+
+        val = callback(matches.groups?.id, vanityType);
+
+        if (val === null) {
+          throw new Error(
+            "Provided vanity url does not ressolve to any SteamID",
+          );
+        }
+      } else {
+        const matches = value.match(
+          /^https?:\/\/(?:(?:my\.steamchina|steamcommunity)\.com\/user|s\.team\/p)\/(?<id>[\w-]+)(?:\/|$)/,
+        );
+        if (matches != null && matches.groups?.id != undefined) {
+          val = matches.groups?.id.toLowerCase();
+          val = val?.replace(/[^bcdfghjkmnpqetvw]/, "");
+          val = replaceFlip(val);
+          val = Number(val).toString(10);
+
+          const newID = new SteamID();
+          newID.setAccountUniverse(this.UniversePublic);
+          newID.setAccountInstance(this.DesktopInstance);
+          newID.setAccountType(this.TypeIndividual);
+          newID.setAccountID(val);
+
+          return newID;
+        }
+      }
+    }
+
+    return new SteamID(val);
+  }
+
+  /**
+   * @param {[number | bigint | string]} value
+   * @returns {SteamID}
+   */
+  public setFromUInt64(value: number | bigint | string): SteamID {
     if (this.isNumeric(value)) {
       this.data = BigInt(value);
     } else {
@@ -242,12 +359,15 @@ export class SteamID {
     return this;
   }
 
+  /**
+   * @returns {string}
+   */
   public convertToUInt64(): string {
     return String(this.data);
   }
 
   /**
-   * Check weither a given SteamID is a given SteamID
+   * Check if a given SteamID is a valid SteamID.
    *
    * @returns {boolean}
    */
@@ -465,6 +585,32 @@ function replace(str: string): string {
       case "d": { r += "t"; break; }
       case "e": { r += "v"; break; }
       case "f": { r += "w"; break; }
+     }
+  }
+  return r;
+}
+
+function replaceFlip(str: string): string {
+  let r = "";
+  for (const char of str) {
+    // deno-fmt-ignore
+    switch (char) {
+      case "b": { r += "0"; break; }
+      case "c": { r += "1"; break; }
+      case "d": { r += "2"; break; }
+      case "f": { r += "3"; break; }
+      case "g": { r += "4"; break; }
+      case "h": { r += "5"; break; }
+      case "j": { r += "6"; break; }
+      case "k": { r += "7"; break; }
+      case "m": { r += "8"; break; }
+      case "n": { r += "9"; break; }
+      case "p": { r += "a"; break; }
+      case "q": { r += "b"; break; }
+      case "e": { r += "c"; break; }
+      case "t": { r += "d"; break; }
+      case "v": { r += "e"; break; }
+      case "w": { r += "f"; break; }
      }
   }
   return r;
