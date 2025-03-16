@@ -273,80 +273,6 @@ export class SteamID {
   }
 
   /**
-   * @param {string} value
-   * @param {function(string, number)} callback
-   * @returns
-   */
-  public setFromURL(
-    value: string,
-    callback: (str: string, n: number) => string,
-  ): SteamID {
-    let val;
-    const matches = value.match(
-      /^https?:\/\/(?:my\.steamchina|steamcommunity)\.com\/(?<type>profiles|gid)\/(?<id>.+?)(?:\/|$)/,
-    );
-    if (matches != null) {
-      val = matches.groups?.id;
-    } else {
-      const matches = value.match(
-        /^https?:\/\/(?:my\.steamchina|steamcommunity)\.com\/(?<type>id|groups|games)\/(?<id>[\w-]+)(?:\/|$)/,
-      );
-      // TODO: Check how the empty capturing group are woorking.
-      if (matches != null && matches.groups?.id != undefined) {
-        const length = Number(matches.groups?.id);
-
-        if (length < 2 || length > 32) {
-          throw new Error("Provided vanity url has bad length.");
-        }
-
-        if (this.isNumeric(matches.groups?.id)) {
-          const steamID = new SteamID(matches.groups?.id);
-
-          if (steamID.isValid()) {
-            return steamID;
-          }
-        }
-
-        let vanityType;
-        // deno-fmt-ignore
-        switch (matches.groups?.type) {
-          case "groups": { vanityType = this.VanityIndividual; break; }
-          case "games": { vanityType = this.VanityGameGroup; break; }
-          default: { vanityType = this.VanityIndividual; break; }
-        }
-
-        val = callback(matches.groups?.id, vanityType);
-
-        if (val === null) {
-          throw new Error(
-            "Provided vanity url does not ressolve to any SteamID",
-          );
-        }
-      } else {
-        const matches = value.match(
-          /^https?:\/\/(?:(?:my\.steamchina|steamcommunity)\.com\/user|s\.team\/p)\/(?<id>[\w-]+)(?:\/|$)/,
-        );
-        if (matches != null && matches.groups?.id != undefined) {
-          val = matches.groups?.id.toLowerCase();
-          val = val?.replace(/[^bcdfghjkmnpqetvw]/, "");
-          val = replaceFlip(val);
-          val = Number(val).toString(10);
-
-          const newID = new SteamID();
-          newID.setAccountUniverse(this.UniversePublic);
-          newID.setAccountInstance(this.DesktopInstance);
-          newID.setAccountType(this.TypeIndividual);
-          newID.setAccountID(val);
-
-          return newID;
-        }
-      }
-    }
-
-    return new SteamID(val);
-  }
-
-  /**
    * @param {[number | bigint | string]} value
    * @returns {SteamID}
    */
@@ -585,32 +511,6 @@ function replace(str: string): string {
       case "d": { r += "t"; break; }
       case "e": { r += "v"; break; }
       case "f": { r += "w"; break; }
-     }
-  }
-  return r;
-}
-
-function replaceFlip(str: string): string {
-  let r = "";
-  for (const char of str) {
-    // deno-fmt-ignore
-    switch (char) {
-      case "b": { r += "0"; break; }
-      case "c": { r += "1"; break; }
-      case "d": { r += "2"; break; }
-      case "f": { r += "3"; break; }
-      case "g": { r += "4"; break; }
-      case "h": { r += "5"; break; }
-      case "j": { r += "6"; break; }
-      case "k": { r += "7"; break; }
-      case "m": { r += "8"; break; }
-      case "n": { r += "9"; break; }
-      case "p": { r += "a"; break; }
-      case "q": { r += "b"; break; }
-      case "e": { r += "c"; break; }
-      case "t": { r += "d"; break; }
-      case "v": { r += "e"; break; }
-      case "w": { r += "f"; break; }
      }
   }
   return r;
