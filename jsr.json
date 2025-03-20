@@ -1,0 +1,6 @@
+{
+  "name": "SteamID.js",
+  "version": "0.0.5",
+  "exports": "./src/SteamID.ts",
+  "license": "MIT"
+}

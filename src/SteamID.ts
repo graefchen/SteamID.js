@@ -17,10 +17,8 @@ export class SteamID {
    * `number` type seems to me a little
    * bit to risky, especially when talking
    * about 64 Bit Integers.
-   *
-   * @type {bigint}
    */
-  #data;
+  private data: bigint;
 
   UniverseInvalid = 0;
   UniversePublic = 1;
@@ -55,10 +53,8 @@ export class SteamID {
 
   /**
    * The array of all Characters for all the account chars.
-   *
-   * @type {string[]}
    */
-  accountTypeChars = [
+  accountTypeChars: string[] = [
     "I", // Invalud
     "U", // Individual
     "M", // Multiseat
@@ -68,7 +64,7 @@ export class SteamID {
     "C", // ContentServer
     "g", // Clan
     "T", // Chat: Lobby chat is 'L', Clan chat is 'c'
-    " ", // The P2P SuperSeeder does not have a Letter for it's type
+    " ", // The P2P SuperSeeder does no thave a Letter for it's type
     "a", // AnonUser
   ];
 
@@ -94,18 +90,16 @@ export class SteamID {
    *
    * @param {(number | bigint | string | null)} [value=null]
    */
-  constructor(value = null) {
-    this.#data = BigInt(0);
+  constructor(value: number | bigint | string | null = null) {
+    this.data = BigInt(0);
 
     if (value === null) {
       return;
     }
 
-    const matches = value
-      .toString()
-      .match(
-        /^STEAM_(?<universe>[0-4]):(?<authServer>[0-1]):(?<id>0|[1-9][0-9]{0,9})$/
-      );
+    const matches = value.toString().match(
+      /^STEAM_(?<universe>[0-4]):(?<authServer>[0-1]):(?<id>0|[1-9][0-9]{0,9})$/,
+    );
     // Setting the SteamID from the Steam String
     if (matches != null && matches.groups?.id != undefined) {
       let accountID = Number(matches.groups?.id);
@@ -128,23 +122,21 @@ export class SteamID {
       this.setAccountID(accountID);
     } else {
       // From Steam3 String
-      const matches = value
-        .toString()
-        .match(
-          /^\[(?<type>[AGMPCgcLTIUai]):(?<universe>[0-4]):(?<id>0|[1-9][0-9]{0,9})(?:\:(?<instance>[0-9]+))?\]$/
-        );
+      const matches = value.toString().match(
+        /^\[(?<type>[AGMPCgcLTIUai]):(?<universe>[0-4]):(?<id>0|[1-9][0-9]{0,9})(?:\:(?<instance>[0-9]+))?\]$/,
+      );
       if (matches != null && matches.groups?.type != undefined) {
         const accountID = Number(matches.groups?.id);
 
         if (accountID >= Number(4294967295)) {
           throw new Error(
-            "Provide steamID exceeds max unsigned 32-bit integer."
+            "Provide steamID exceeds max unsigned 32-bit integer.",
           );
         }
 
         let type = matches.groups?.type;
 
-        let instanceID;
+        let instanceID: number;
         if (type == "i") {
           type = "I";
         }
@@ -165,8 +157,8 @@ export class SteamID {
           instanceID = this.InstanceFlagClan;
           // setting account type
         } else {
-          const accountType = this.accountTypeChars.findIndex(
-            (e) => e === type
+          const accountType = this.accountTypeChars.findIndex((e) =>
+            e === type
           );
 
           this.setAccountType(accountType);
@@ -175,8 +167,8 @@ export class SteamID {
         this.setAccountUniverse(Number(matches.groups?.universe));
         this.setAccountInstance(instanceID);
         this.setAccountID(accountID);
-      } else if (this.#isNumeric(value)) {
-        this.#data = BigInt(value);
+      } else if (this.isNumeric(value)) {
+        this.data = BigInt(value);
       } else {
         throw new Error("Provided SteamID is invalid.");
       }
@@ -186,7 +178,7 @@ export class SteamID {
   /**
    * @returns {string}
    */
-  renderSteam2() {
+  public renderSteam2(): string {
     switch (Number(this.getAccountType())) {
       case this.TypeInvalid:
       case this.TypeIndividual: {
@@ -196,7 +188,7 @@ export class SteamID {
         return `STEAM_${universe}:${accountID & 1n}:${accountID >> 1n}`;
       }
       default: {
-        return String(this.#data);
+        return String(this.data);
       }
     }
   }
@@ -204,7 +196,7 @@ export class SteamID {
   /**
    * @returns {string}
    */
-  renderSteam3() {
+  public renderSteam3(): string {
     const accountInstance = this.getAccountInstance();
     const accountType = this.getAccountType();
     let accountTypeChar = this.accountTypeChars[accountType] ?? "i";
@@ -227,12 +219,7 @@ export class SteamID {
       }
     }
 
-    let ret =
-      "[" +
-      accountTypeChar +
-      ":" +
-      this.getAccountUniverse() +
-      ":" +
+    let ret = "[" + accountTypeChar + ":" + this.getAccountUniverse() + ":" +
       this.getAccountID();
 
     if (renderInstance) {
@@ -255,15 +242,12 @@ export class SteamID {
    * const steamid = new SteamID("76561197960287930");
    *
    * // The following prints out this Steam Short URL: https://s.team/p/hj-qp
-   * console.log(`https://s.team/p/${steamid.renderSteamInvite()}`);
-   * // An alternative version  with the normal Steam Profile URL
-   * // and this prints out: https://steamcommunity.com/user/hj-qp
-   * console.log(`https://steamcommunity.com/user/${steamid.renderSteamInvite()}`);
+   * console.log(`https://s.team/p/${steamid.renderSteamInvite()}`)
    * ```
    *
    * @returns {string} The code that can be appended to the link.
    */
-  renderSteamInvite() {
+  public renderSteamInvite(): string {
     switch (this.getAccountType()) {
       case this.TypeInvalid:
       case this.TypeIndividual: {
@@ -292,9 +276,9 @@ export class SteamID {
    * @param {[number | bigint | string]} value
    * @returns {SteamID}
    */
-  setFromUInt64(value) {
-    if (this.#isNumeric(value)) {
-      this.#data = BigInt(value);
+  public setFromUInt64(value: number | bigint | string): SteamID {
+    if (this.isNumeric(value)) {
+      this.data = BigInt(value);
     } else {
       throw new Error("Provided SteamID is not numeric.");
     }
@@ -304,8 +288,8 @@ export class SteamID {
   /**
    * @returns {string}
    */
-  convertToUInt64() {
-    return String(this.#data);
+  public convertToUInt64(): string {
+    return String(this.data);
   }
 
   /**
@@ -313,7 +297,7 @@ export class SteamID {
    *
    * @returns {boolean}
    */
-  isValid() {
+  public isValid(): boolean {
     const accountType = this.getAccountType();
 
     if (accountType <= this.TypeInvalid || accountType > this.TypeAnonUser) {
@@ -356,48 +340,48 @@ export class SteamID {
   /**
    * @returns {bigint}
    */
-  getAccountID() {
+  public getAccountID(): bigint {
     // valueMask: 4294967295 = 0xFFFFFFFF
-    return BigInt(this.#get(0, "4294967295"));
+    return BigInt(this.get(0, "4294967295"));
   }
 
   /**
    * @returns {number}
    */
-  getAccountInstance() {
+  public getAccountInstance(): number {
     // valueMask: 1048575 = 0xFFFFF
-    return Number(this.#get(32, 1048575));
+    return Number(this.get(32, 1048575));
   }
 
   /**
    * @returns {number}
    */
-  getAccountType() {
+  public getAccountType(): number {
     // valueMask: 15 = 0xF
-    return Number(this.#get(52, 15));
+    return Number(this.get(52, 15));
   }
 
   /**
    * @returns {number}
    */
-  getAccountUniverse() {
+  public getAccountUniverse(): number {
     // valueMask: 255 = 0xFF
-    return Number(this.#get(56, 255));
+    return Number(this.get(56, 255));
   }
 
   /**
    * @param {[number | bigint | string]}
    * @returns {SteamID}
    */
-  setAccountID(value) {
-    if (BigInt(value) < 0 || BigInt(value) > 0xffffffff) {
+  public setAccountID(value: number | bigint | string): SteamID {
+    if (BigInt(value) < 0 || BigInt(value) > 0xFFFFFFFF) {
       throw new Error("Account id can not be higher than 0xFFFFFFFF.");
     }
 
     console.log("AccountID:");
 
     // 4294967295 = 0xFFFFFFFF
-    this.#set(0, 4294967295n, value);
+    this.set(0, 4294967295n, value);
 
     return this;
   }
@@ -406,13 +390,13 @@ export class SteamID {
    * @param {[number | bigint]}
    * @returns {SteamID}
    */
-  setAccountInstance(value) {
-    if (BigInt(value) < 0 || BigInt(value) > 0xffff) {
+  public setAccountInstance(value: number | bigint): SteamID {
+    if (BigInt(value) < 0 || BigInt(value) > 0xFFFF) {
       throw new Error("Account instance can not be higher than 0xFFFF.");
     }
 
     // 1048575 = 0xFFFF
-    this.#set(32, 1048575n, value);
+    this.set(32, 1048575n, value);
 
     return this;
   }
@@ -421,13 +405,13 @@ export class SteamID {
    * @param {[number | bigint]}
    * @returns {SteamID}
    */
-  setAccountType(value) {
-    if (BigInt(value) < 0 || BigInt(value) > 0xf) {
+  public setAccountType(value: number | bigint): SteamID {
+    if (BigInt(value) < 0 || BigInt(value) > 0xF) {
       throw new Error("Account type can not be higher than 0xF.");
     }
 
     // 15 = 0xF
-    this.#set(52, 15n, value);
+    this.set(52, 15n, value);
 
     return this;
   }
@@ -436,13 +420,13 @@ export class SteamID {
    * @param {[number | bigint]}
    * @returns {SteamID}
    */
-  setAccountUniverse(value) {
-    if (BigInt(value) < 0 || BigInt(value) > 0xff) {
+  public setAccountUniverse(value: number | bigint): SteamID {
+    if (BigInt(value) < 0 || BigInt(value) > 0xFF) {
       throw new Error("Account universe can not be higher than 0xFF.");
     }
 
     // 255 = 0xFF
-    this.#set(56, 255n, value);
+    this.set(56, 255n, value);
 
     return this;
   }
@@ -452,8 +436,11 @@ export class SteamID {
    * @param {[number | bigint | string]} valueMask
    * @returns {bigint}
    */
-  #get(bitOffset, valueMask) {
-    return (this.#data >> BigInt(bitOffset)) & BigInt(valueMask);
+  private get(
+    bitOffset: number | bigint,
+    valueMask: number | bigint | string,
+  ): bigint {
+    return (this.data >> BigInt(bitOffset)) & BigInt(valueMask);
   }
 
   /**
@@ -462,19 +449,23 @@ export class SteamID {
    * @param {[number | bigint | string]} value
    * @returns {void}
    */
-  #set(bitOffset, valueMask, value) {
+  private set(
+    bitOffset: number | bigint,
+    valueMask: number | bigint | string,
+    value: number | bigint | string,
+  ): void {
     const bOffset = BigInt(bitOffset);
     const valMask = BigInt(valueMask);
     const val = BigInt(value);
-    this.#data =
-      (this.#data & ~(valMask << bOffset)) | ((val & valMask) << bOffset);
+    this.data = (this.data & ~(valMask << bOffset)) |
+      ((val & valMask) << bOffset);
   }
 
   /**
    * @param {[number | bigint | string]} n
    * @returns {boolean}
    */
-  #isNumeric(n) {
+  private isNumeric(n: number | bigint | string): boolean {
     if (typeof n === "number" || typeof n === "bigint") {
       return n > 0;
     }
@@ -486,8 +477,8 @@ export class SteamID {
   /**
    * @returns {string}
    */
-  toString() {
-    return `${this.#data.toString()}`;
+  public toString(): string {
+    return `${this.data.toString()}`;
   }
 }
 
@@ -499,10 +490,10 @@ export class SteamID {
  * @param {string} str
  * @returns {string}
  */
-function replace(str) {
+function replace(str: string): string {
   let r = "";
   for (const char of str) {
-    // prettier-ignore
+    // deno-fmt-ignore
     switch (char) {
       case "0": { r += "b"; break; }
       case "1": { r += "c"; break; }
